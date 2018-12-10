@@ -49,12 +49,12 @@ def takeFoto(interactivo = False, idn=0):
                 if key == ord('f'):
                     salir = True
                     foto = True
+        cv2.destroyAllWindows()
     else:
         ret, frame = cap.read()
         foto = ret
         
     cap.release()
-    cv2.destroyAllWindows()
     
     if foto:
         return frame
@@ -167,26 +167,25 @@ def seleccionarColor(tolerancia=20,idn=0):
             image = cv2.rectangle(bkp.copy(), refPt[0], lastPosition, (0, 255, 0), 2)
             cv2.imshow(title, image)
         if colorchange:
-            showresta(image.copy(),color.copy(),tolerancia=tolerancia,gris=True)
+            #showresta(image.copy(),color.copy(),tolerancia=tolerancia,gris=True)
+            binarizar(hacerResta(image.copy(),color.copy()),tolerancia = tolerancia)
             colorchange=False
-        if key == ord('v'):
-            salir = True
-            video = True
         if key == ord('s'):
             salir = True
+            video = True
     cv2.destroyAllWindows()
     
     if video:
         # inicializamos el modo video
-        cap = cv2.VideoCapture(idn)
         salir = False
+        cap = cv2.VideoCapture(idn)
         while (not salir):
             key = cv2.waitKey(1)
             if key == ord('q'):
                 salir = True
             # Capture frame-by-frame
             ret, frame = cap.read()
-            showresta(frame.copy(),color.copy(),tolerancia=tolerancia,gris=False, binaria = False)
+            xcm, ycm = get_CM(color, tolerancia = tolerancia, idn = idn,show = True, imagen = frame)
         cap.release()
         cv2.destroyAllWindows()
         
@@ -217,7 +216,7 @@ def binarizar (imagen, tolerancia = 20):
     restaSaturada = np.uint8(restaSaturada)
     return restaSaturada
    
-def centrodemasa(binarizado):
+def centrodemasa(binario):
     """
     Esta funcion calcula el centro de masa a partir de una matriz donde considera los puntos con intensidad mayor a 200
     """
@@ -228,12 +227,14 @@ def centrodemasa(binarizado):
     ycm = np.dot(y,np.sum(binario,1))/np.sum(binario)
     return [xcm,ycm]
 
-def get_CM(color, tolerancia = 20, idn=0, show=False):
+def get_CM(color, tolerancia = 20, idn=0, show=False, imagen = None):
     """
     Funcion que sirve para calcular el centro de masa conociendo el color a buscar.
     """
-    imagen = takeFoto(idn = idn)
-    xcm, ycm = centrodemasa(binarizar(hacerResta(imagen,color),tolerancia=tolerancia))
+    if imagen is None:
+        imagen = takeFoto(idn = idn)
+    imagen = binarizar(hacerResta(imagen,color),tolerancia=tolerancia)
+    xcm, ycm = centrodemasa(imagen)
     if show:
         showimage(imagen,CM=True,Xcm=xcm,Ycm=ycm)
     return xcm, ycm
@@ -243,6 +244,8 @@ def showimage(imagen, CM=False, Xcm=None, Ycm=None):
     tituloVentana = 'Visualizacion'
     cv2.namedWindow(tituloVentana)
     if CM:
-        imagen = cv2.circle(imagen,(int(Xcm),int(Ycm)),20,(0, 255, 0),3)
+        if not np.isnan(Xcm):
+            if not np.isnan(Ycm):
+                imagen = cv2.circle(imagen,(int(Xcm),int(Ycm)),20,(200, 200, 200),3)
     cv2.imshow(tituloVentana, imagen)
    
